@@ -18,6 +18,7 @@ Ecosystems are needed to foster regional innovation. The purpose of this researc
         - others: Regions, Institutions & Investments data
         - raw_original data: Raw data
         - raw_tweets: Raw tweets
+        - tweets_file.pkl: merged and cleaned tweets file
     - images: Photoshop edited, regional geography masks
     - InitExploration.ipynb: Jupyter notebook containing the analysis
 - Report: Xavier_Amat_205834, thesis report
