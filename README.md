@@ -20,7 +20,8 @@ Ecosystems are needed to foster regional innovation. The purpose of this researc
         - raw_tweets: Raw tweets
     - images: Photoshop edited, regional geography masks
     - InitExploration.ipynb: Jupyter notebook containing the analysis
-- Report
+- Report: Xavier_Amat_205834, thesis report
+- Planification Tool: Gantt chart
 
 ## Features
 
