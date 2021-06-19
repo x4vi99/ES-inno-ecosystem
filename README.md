@@ -1,7 +1,5 @@
 # Defining the Spanish Innovation Ecosystem, Data-driven Analysis from 2018-2021
-## _Xavier Amat i García_
-## _Supervisor: Manuel Portela_
-## _Universitat Pompeu Fabra_
+## _Xavier Amat i García_ , _Supervisor: Manuel Portela_, _Universitat Pompeu Fabra_
 
 
 ## Abstract:
