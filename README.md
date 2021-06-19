@@ -24,6 +24,9 @@ Ecosystems are needed to foster regional innovation. The purpose of this researc
 
 ## Features
 
+- APIs
+- Crawling and Information Retrieval 
+- Geocoding
 - NLP analysis
 - Network analysis
 - Spatial analysis
