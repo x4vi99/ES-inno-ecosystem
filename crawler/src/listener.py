@@ -1,4 +1,3 @@
-import re
 import simplejson as json
 from tweepy import OAuthHandler
 from tweepy import Stream
@@ -10,110 +9,38 @@ import argparse
 from pathlib import Path
 import nltk
 import time
-import googlemaps
-from geopy.geocoders import Nominatim
-from datetime import datetime
-import pandas as pd
 
-class MyListener(StreamListener):
-    def __init__(self, max_tweets, output_file=None):
-        super(StreamListener, self).__init__()
+class MyListener:
+    def __init__(self,output_file=None, user_file=None):
         self.num_tweets = 0
-        self.max_tweets = max_tweets
         if output_file == None:
             if not OUTPUT_JSON.parent.is_dir():
                 OUTPUT_JSON.parent.mkdir(parents=False)
         self.output_file = output_file if output_file is not None else str(OUTPUT_JSON)
         self.tweet_ids = set()
 
-    #Writes the stream data on the output file
-    def on_data(self, data):
-        try:
+    def save_tweet(self, tweet):
             with open(self.output_file, 'a') as f:
-                jdata = json.loads(data)
-                if 'retweeted_status' in jdata:
-                    filter_data = self.get_tweet(jdata)
-                    filter_data_original = self.get_tweet(jdata['retweeted_status'])
-                    if filter_data == False or filter_data_original == False :
-                        return
-                    if filter_data['ID'] in self.tweet_ids:
-                        return
-                    self.tweet_ids.add(filter_data['ID'])
-                    self.tweet_ids.add(filter_data_original['ID'])
-                    self.num_tweets += 2
-                    print('%d / %d' % (self.num_tweets, self.max_tweets), end='\r')
-                    f.write(json.dumps(filter_data)+'\n')
-                    f.write(json.dumps(filter_data_original)+'\n')
-                else:
-                    filter_data = self.get_tweet(jdata)
-                    if filter_data == False:
-                        return
-                    if filter_data['ID'] in self.tweet_ids:
-                        return
-                    self.tweet_ids.add(filter_data['ID'])
-                    self.num_tweets += 1
-                    print('%d / %d' % (self.num_tweets, self.max_tweets), end='\r')
-                    f.write(json.dumps(filter_data)+'\n')
+                jdata = json.loads(tweet)
+                filter_data = self.get_tweet(jdata)
+                if filter_data['ID'] in self.tweet_ids:
+                    return
+                self.tweet_ids.add(filter_data['ID'])
+                self.num_tweets += 1
+                print('%d' % (self.num_tweets), end='\r')
+                f.write(json.dumps(filter_data)+'\n')
+    
 
-                # Setting a limit in the number of tweets collected
-                if self.num_tweets < self.max_tweets:
-                    return True
-                else:
-                    return False
-
-        except BaseException as e:
-            print("Error on_data: %s" % str(e))
-        return True
-    #Formats tweet data to a python dictionary
     def get_tweet(self, jdata):
-
         filter_data = {}
-
-        if 'retweeted_status' in jdata:
-            filter_data['IsRetweet']=1
-            filter_data['RT_UserId']=jdata['retweeted_status']['user']['id_str']
-            filter_data['RT_UserName']=jdata['retweeted_status']['user']['screen_name']
-        else:
-            filter_data['IsRetweet']=0
         if 'extended_tweet' in jdata:
             filter_data['Tweet_text'] = jdata['extended_tweet']['full_text']
-            if any(substring in filter_data['Tweet_text'] for substring in KEYWORDS)==False:
-                return False
             hashtags = jdata['extended_tweet']['entities']['hashtags']
-            filter_data['Mentions']=jdata['extended_tweet']['entities']['user_mentions']
         else:
             filter_data['Tweet_text'] = jdata['text']
-            if any(substring in filter_data['Tweet_text'] for substring in KEYWORDS)==False:
-                return False
             hashtags = jdata['entities']['hashtags']
-            filter_data['Mentions']=jdata['entities']['user_mentions']
-        if 'coordinates' in jdata and jdata['coordinates'] is not None:
-            filter_data["Coordinates"] = jdata['coordinates']['coordinates']
-        p=jdata['place']
-        if p is not None and p=="ES":
-            filter_data["Country"] = jdata['place']['country_code']
-            filter_data["Place"] = jdata['place']['full_name']
-    
         filter_data['Hashtags'] = [ht['text'] for ht in hashtags]
         filter_data['UserId'] = jdata['user']['id']
-        filter_data['UserName'] = jdata['user']['screen_name']
-        filter_data['UserLocation']=jdata['user']['location']
-        try:
-            #filter_data['MapsLocation']=gmaps.geocode(filter_data['UserLocation'])
-            location = geolocator.geocode(filter_data['UserLocation'])
-            filter_data['MapsLocation']=location.address
-            filter_data['lat']=location.latitude
-            filter_data['long']=location.longitude
-        except:
-            return False
-        try:
-            #lent=len(filter_data["MapsLocation"][0]['address_components'])
-            #country=filter_data["MapsLocation"][0]['address_components'][lent-1]['short_name']
-            t = 'España'
-            if t not in filter_data['MapsLocation']:
-                return False
-        except:
-            return False
         filter_data['ID'] = jdata['id']
         filter_data['Date'] = jdata['created_at']
         filter_data['Likes'] = jdata['favorite_count']
@@ -127,50 +54,59 @@ class MyListener(StreamListener):
         print('Error :', status.place)
         return False
 
-#KEYWORDS used for the search
-KEYWORDS = ["innovación", "tecnología", "startup", "digitalización","transformación digital", "emprend", "digital", "digit", "innov", "tech", "research", "open innovation","R&D","I+D"]
-#idea, ecosistema, "iniciativa", "disrup", "industria": Too broad
-
-#Argument parser
 def parse_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument('-N', type=int, default=5000, help='Number of tweets')
     parser.add_argument('-output', default=None, help='Output json of tweets')
     return parser.parse_args()
-#Default output path
-OUTPUT_JSON = Path('/Users/xaviamat/Desktop/TFG/Innovation_Tool/data/tweets_es.json')
+
+OUTPUT_JSON = Path('/Users/xaviamat/Desktop/TFG/Innovation_Tool/data/tweets.json')
 
 if __name__ == '__main__':
     nltk.download('stopwords')
-    #Add your Twitter API keys
-    consumer_key = 'UPtQiALNjB7rWxcIY8CB9IXmb'
-    consumer_secret = 'lsU5NELQCDfE7eGs0f2fraobK34LoF7X0OSreaOAdLR7n7uwv8'
-    access_token = '3796381515-0VrTXAZlasSMTWGlYBDa5djTsKjS6hl1eqrHmIt'
-    access_secret = 'juiVqZVBAoqQyFjXfsWWt8LkBM0ikqpNsWmhHrh8ZyHA3'
+
+    consumer_key = ''
+    consumer_secret = ''
+    access_token = ''
+    access_secret = ''
 
     auth = OAuthHandler(consumer_key, consumer_secret)
     auth.set_access_token(access_token, access_secret)
     args = parse_args()
     start_time = time.time()
-    listener = MyListener(args.N, output_file=args.output)
-    twitter_stream = Stream(auth, listener)
+    listener = MyListener(output_file=args.output)
 
-    geolocator = Nominatim(user_agent="InnovationTool")
-    #gmaps=googlemaps.Client(key='')
+    #twitter_stream = Stream(auth, listener)
+    api = tweepy.API(auth)
+    users = ["marabales","cris_aranda_","XavierFerras","oalcoba","XavierMarcet","PereCondom","ealmirall","rodriguezhernan","carmeartigas","Elena_Gil_Liza","HoracioMorellG","oscarpierremi","davidcierco","MiguelVicente_","carlosblanco","aiglesiasfraga","MartaAntunezBCN","NadiaCalvino","MLMelo"]
+     #initialize a list to hold all the tweepy Tweets
+    alltweets = []  
 
-    #Spain geography bounding box
-    bounding_box=[-18.3936845, 27.4335426, 4.5918885, 43.9933088]
+    for user in users:
+        #make initial request for most recent tweets (200 is the maximum allowed count)
+        new_tweets = api.user_timeline(screen_name = user,count=200)
+        
+        #save most recent tweets
+        alltweets.extend(new_tweets)
+        
+        #save the id of the oldest tweet less one
+        oldest = alltweets[-1].id - 1
+        #keep grabbing tweets until there are no tweets left to grab
+        while len(new_tweets) > 0:
+            print(f"getting tweets before {oldest}")
+            
+            #all subsiquent requests use the max_id param to prevent duplicates
+            new_tweets = api.user_timeline(screen_name = user,count=200,max_id=oldest)
+            
+            #save most recent tweets
+            alltweets.extend(new_tweets)
+            
+            #update the id of the oldest tweet less one
+            oldest = alltweets[-1].id - 1
+            
+            print(f"...{len(alltweets)} tweets downloaded so far")
+        for tweet in alltweets:
+            listener.save_tweet(json.dumps(tweet._json))
 
-    while(listener.num_tweets < args.N):
-        try:
-            twitter_stream.filter(track=KEYWORDS, locations=bounding_box, languages=['es']) # Add your keywords and other filters
-        except:
-            print('Exception at', listener.num_tweets)
-            pass
-            # str = input('Continue? ')
-            # if str == 'n': #TODO make better
-            #     break
-            # pass
     total_time = time.time() - start_time
     print('_______ End _______')
     print('Tweets: ', listener.num_tweets)
